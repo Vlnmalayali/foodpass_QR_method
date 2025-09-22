@@ -1,0 +1,120 @@
+function doGet(e) { 
+  const code = e.parameter.code;
+  if (!code) {
+    return styledOutput("❌ No code provided.", "error");
+  }
+
+  const ss = SpreadsheetApp.openById("190PQ85fciAZnKKLbe2tsLAL2rc8fs9HraxI2J-g86Jc");
+  const sheet = ss.getSheetByName("FoodPass");
+  if (!sheet) return styledOutput("❌ Sheet not found.", "error");
+
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    const storedCode = data[i][0]; // Column A → ID
+    const status = data[i][4];     // Column E → Status
+
+    if (storedCode === code) {
+      const name = data[i][1];   // Column B → NAME
+      const phone = data[i][2];  // Column C → Phone Number
+
+      if (status === "Scanned") {
+        return styledOutput(`⚠ QR already used for <strong>${name}</strong>.`, "warning");
+      } else {
+        const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "d MMM yyyy, h:mm a");
+        sheet.getRange(i + 1, 5).setValue("Scanned");   // Column E
+        sheet.getRange(i + 1, 6).setValue(timestamp);   // Column F
+
+        const logSheet = ss.getSheetByName("ScanLog");
+        if (logSheet) {
+          logSheet.appendRow([name, phone, storedCode, timestamp]);
+        }
+
+        return styledOutput(
+          `✅ Welcome <strong>${name}</strong>!<br>Your food pass was verified at <strong>${timestamp}</strong>.`, 
+          "success"
+        );
+      }
+    }
+  }
+
+  return styledOutput("❌ Invalid or fake QR code.", "error");
+}
+
+function styledOutput(message, type) {
+  let color = {
+    success: "#4CAF50",
+    error: "#f44336",
+    warning: "#ff9800"
+  }[type] || "#333";
+
+  let html = `
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body {
+            font-family: 'Segoe UI', sans-serif;
+            text-align: center;
+            padding: 30px;
+            background: #f0f0f0;
+          }
+          .card {
+            background: white;
+            padding: 30px;
+            margin: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            max-width: 400px;
+          }
+          h1 {
+            color: ${color};
+            margin-bottom: 20px;
+          }
+          p {
+            font-size: 18px;
+            color: #555;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <img src="https://i.postimg.cc/pTkmWJwH/Project-20250824013422.png" alt="Event Logo" style="max-width: 150px; margin-bottom: 20px;">
+          <h1>${message}</h1>
+          <p>${type === 'success' ? "Enjoy your meal 🎉" : "Please contact the event team."}</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  return HtmlService.createHtmlOutput(html);
+}
+
+function exportQRsToDrive() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName("FoodPass");  // change if your sheet has another name
+  const folder = DriveApp.createFolder("FoodPass QRs " + new Date().toISOString());
+
+  const lastRow = sh.getLastRow();
+  const data = sh.getRange(2, 2, lastRow - 1, 2).getValues(); 
+  // Column A = ID, Column B = Name (adjust if needed)
+
+  data.forEach((row, i) => {
+    const id = sh.getRange(i + 2, 1).getValue();   // ID in col A
+    const name = row[0];                           // Name in col B
+    if (!id) return;
+
+    // Build QR API link (your webapp URL goes here)
+    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=" +
+                  encodeURIComponent("https://script.google.com/macros/s/AKfycbxz8cpc9IH5x0uodrnn_4vdKcuDG_pU03ZVdtjChqiYp5zUhhLg8CLkgEqVrOjgZIEn/exec?code=" + id);
+
+    // Fetch PNG from API
+    const blob = UrlFetchApp.fetch(qrUrl).getBlob()
+      .setName(id + " - " + name + ".png");
+
+    // Save into Drive folder
+    folder.createFile(blob);
+  });
+
+  SpreadsheetApp.getUi().alert("✅ Saved " + (lastRow - 1) + " QR codes into folder:\n" + folder.getName());
+}
