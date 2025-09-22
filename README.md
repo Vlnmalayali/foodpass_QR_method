@@ -38,7 +38,7 @@
      (looks like: `1aBcD3FGhIJkLmnopQRsTuvWXyZ1234567890`)
    * Update sheet/tab names if needed (`FoodPass`, `Scanlog`)
    * Replace the event logo link if you want a custom logo.
-
+   * change the line 82 from App Script Code (it's a logo so paste other url of you logo there) 
 ---
 
 ## ✅ Step 3: Deploy the Script as a Web App
