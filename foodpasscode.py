@@ -11,8 +11,8 @@ os.makedirs(output_dir, exist_ok=True)
 background = Image.open(background_image_path).convert("RGBA")
 
 # White box position and size (tuned for your template, adjust if needed)
-box_x, box_y = 300, 560
-box_w, box_h = 510, 510
+box_x, box_y = 300, 560 #for to align the postion 
+box_w, box_h = 510, 510 # size of Qr to be placed
 
 # Process each QR image in your QR folder
 for qr_filename in os.listdir(qr_images_dir):
@@ -32,3 +32,4 @@ for qr_filename in os.listdir(qr_images_dir):
         composed.save(out_path)
 
 print("Food passes have been generated with QR codes correctly placed!")
+
